@@ -1,0 +1,1187 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E9EBE3" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#121815" media="(prefers-color-scheme:dark)">
+<title>PraiseWorld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* ============================================================
+   PraiseWorld — "Daybook"
+   A shared household ledger for two people. The date is the
+   masthead. The load bar is the one loud object on the page.
+   Everything else is ruled, quiet and generously tappable.
+
+   Colour tokens keep their original names: the JS writes some of
+   them into inline styles (legend swatches, the sync button).
+   Do not rename --her, --you, --both, --now, --ai, --ink,
+   --ground, --paper, --line, --soft.
+   ============================================================ */
+:root{
+  --ground:#E9EBE3; --paper:#FBFCF9; --sheet:#FFFFFF;
+  --ink:#17211C; --soft:#5E6B64; --faint:#8B968E;
+  --line:#D5DACE; --hair:#E3E7DD;
+  --her:#16697F; --you:#7B4B72; --both:#5C6F2E;
+  --now:#AE3A22; --ai:#2E4A8C;
+  --her-w:#E1EFF2; --you-w:#F3E8F1; --both-w:#EBF0DE; --now-w:#FAE7E1;
+  --shadow:0 1px 2px rgba(23,33,28,.05),0 10px 26px -14px rgba(23,33,28,.20);
+  --lift:0 2px 4px rgba(23,33,28,.07),0 18px 38px -16px rgba(23,33,28,.28);
+  --sans:'Instrument Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --disp:'Bricolage Grotesque','Instrument Sans',ui-sans-serif,system-ui,sans-serif;
+  --r:15px; --rs:10px; --tap:44px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#121815; --paper:#1A221E; --sheet:#202924;
+    --ink:#E7ECE5; --soft:#96A29A; --faint:#6E7B73;
+    --line:#2C362F; --hair:#242E28;
+    --her:#5FBFD4; --you:#D695C7; --both:#A6C05E;
+    --now:#EE7A60; --ai:#93AAEC;
+    --her-w:#102C34; --you-w:#301F2C; --both-w:#242C13; --now-w:#36191280;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 26px -14px rgba(0,0,0,.7);
+    --lift:0 2px 4px rgba(0,0,0,.5),0 18px 38px -16px rgba(0,0,0,.8);
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--ink)}
+
+#hb{
+  font-family:var(--sans);color:var(--ink);background:var(--ground);
+  max-width:620px;margin:0 auto;line-height:1.55;
+  padding:0 18px calc(80px + env(safe-area-inset-bottom));
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  font-variant-numeric:tabular-nums;
+}
+/* No colour here. `#hb button` outranks every class rule below on
+   specificity, so setting a colour at this level makes dark buttons
+   render their label in ink on ink. Each button sets its own colour. */
+#hb button{font-family:inherit;cursor:pointer}
+#hb textarea,#hb input{font-family:var(--sans);color:var(--ink)}
+#hb :focus-visible{outline:2.5px solid var(--ai);outline-offset:2px;border-radius:5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- masthead: the date is the headline ---------- */
+.wordmark{
+  font-family:var(--sans);font-weight:600;font-size:11px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--faint);
+  padding-top:26px;margin-bottom:14px;
+}
+.topline{margin-bottom:18px}
+.topline .date{
+  font-family:var(--disp);font-variation-settings:'opsz' 40;
+  font-weight:800;font-size:clamp(28px,8vw,38px);line-height:1.02;
+  letter-spacing:-.035em;color:var(--ink);text-wrap:balance;max-width:11ch;
+}
+
+/* ---------- nav: sticky segmented control ---------- */
+nav{
+  position:sticky;top:0;z-index:20;
+  display:flex;gap:2px;padding:7px 0 9px;margin-bottom:22px;
+  background:linear-gradient(var(--ground) 72%,rgba(233,235,227,0));
+  overflow-x:auto;scrollbar-width:none;
+}
+nav::-webkit-scrollbar{display:none}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) nav{background:linear-gradient(var(--ground) 72%,rgba(18,24,21,0))}
+}
+nav button{
+  flex:1 0 auto;border:0;background:none;padding:9px 13px;border-radius:999px;
+  font-size:14px;font-weight:600;color:var(--soft);letter-spacing:-.01em;
+  transition:background .15s,color .15s;white-space:nowrap;
+}
+nav button:hover{color:var(--ink)}
+nav button.on{background:var(--ink);color:var(--ground)}
+
+/* ---------- the ledger: the one loud object ---------- */
+.load{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--r);
+  padding:20px 18px 18px;box-shadow:var(--lift);margin-bottom:34px;
+}
+.load h1{
+  font-family:var(--disp);font-variation-settings:'opsz' 24;
+  font-weight:800;font-size:19px;letter-spacing:-.025em;margin:0 0 15px;
+}
+.bar{display:flex;gap:3px;height:52px;border-radius:var(--rs);overflow:hidden}
+.bar span{
+  display:flex;align-items:center;justify-content:center;flex-basis:0;min-width:0;
+  font-family:var(--disp);font-variation-settings:'opsz' 28;
+  font-weight:800;font-size:19px;color:#fff;letter-spacing:-.02em;
+  transition:flex-grow .45s cubic-bezier(.4,0,.2,1);overflow:hidden;
+}
+.s-her{background:var(--her)}.s-you{background:var(--you)}.s-both{background:var(--both)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .bar span{color:#0E1411}
+}
+.legend{display:flex;gap:16px;margin-top:13px;font-size:13px;color:var(--soft);flex-wrap:wrap;font-weight:500}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:baseline}
+.load p.msg{font-size:16px;line-height:1.5;margin:16px 0 0;color:var(--ink);text-wrap:pretty}
+.cta{
+  margin-top:16px;width:100%;min-height:var(--tap);
+  border:1.5px solid var(--ink);background:var(--ink);color:var(--ground);
+  padding:12px;border-radius:var(--rs);font-size:15.5px;font-weight:600;letter-spacing:-.01em;
+  transition:opacity .15s,transform .1s;
+}
+.cta:active{transform:translateY(1px)}
+.cta:disabled{opacity:.32;cursor:default}
+
+/* ---------- sections: ruled headers, not more cards ---------- */
+section{margin-top:34px}
+section>h2{
+  font-family:var(--disp);font-variation-settings:'opsz' 24;
+  font-weight:800;font-size:21px;letter-spacing:-.028em;margin:0 0 4px;text-wrap:balance;
+}
+section>.sub{font-size:14px;color:var(--soft);margin:0 0 14px;line-height:1.5;max-width:52ch}
+.card{
+  background:var(--paper);border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);
+}
+
+/* ---------- medication ---------- */
+.med{display:flex;align-items:center;gap:14px;padding:14px;border-bottom:1px solid var(--hair)}
+.med:last-child{border-bottom:0}
+.med .t{
+  font-family:var(--disp);font-variation-settings:'opsz' 24;
+  font-weight:800;font-size:21px;width:66px;flex:none;letter-spacing:-.03em;color:var(--ink);
+}
+.med.late .t{color:var(--now)}
+.med .l{flex:1;font-size:14.5px;min-width:0;font-weight:500}
+.med .tick{
+  border:2px solid var(--line);background:none;width:var(--tap);height:var(--tap);
+  border-radius:50%;flex:none;font-size:17px;color:var(--soft);
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.med .tick.on{background:var(--both);border-color:var(--both);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .med .tick.on{color:#0E1411}}
+.med input[type=time]{
+  border:1px solid var(--line);border-radius:7px;padding:4px 7px;font-size:12.5px;
+  background:var(--ground);color:var(--soft);margin-top:5px;
+}
+.alarm{margin-top:12px;font-size:13px;color:var(--soft);line-height:1.5}
+.alarm button{
+  border:1.5px solid var(--line);background:var(--paper);border-radius:999px;
+  padding:9px 15px;font-size:13.5px;font-weight:600;color:var(--ink);margin-right:10px;min-height:38px;
+}
+.alarm button:hover{border-color:var(--ink)}
+
+/* ---------- three things today ---------- */
+.focus .slot{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--hair);min-height:58px}
+.focus .slot:last-child{border-bottom:0}
+.focus .n{
+  font-family:var(--disp);font-variation-settings:'opsz' 18;
+  font-weight:800;color:var(--line);font-size:17px;width:16px;flex:none;
+}
+.focus .empty{color:var(--faint);font-size:14.5px;font-style:italic}
+
+/* ---------- tasks ---------- */
+.task{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border-bottom:1px solid var(--hair)}
+.task:last-of-type{border-bottom:0}
+.task .num{
+  font-family:var(--disp);font-weight:700;font-size:11.5px;color:var(--faint);
+  width:17px;flex:none;margin-top:12px;letter-spacing:0;
+}
+.task .box,.focus .box{
+  border:2px solid var(--line);background:none;width:26px;height:26px;border-radius:8px;
+  flex:none;margin-top:5px;font-size:14px;color:transparent;position:relative;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+/* The tick reads small but has to be tappable with a thumb, so extend the hit
+   area past the drawn box without changing how it looks. */
+.task .box::after,.focus .box::after{content:'';position:absolute;inset:-9px;border-radius:13px}
+.task .box.on,.focus .box.on{background:var(--both);border-color:var(--both);color:#fff}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .task .box.on,
+  :root:not([data-theme="light"]) .focus .box.on{color:#0E1411}
+}
+.task .mid,.focus .mid{flex:1;min-width:0}
+.task .title,.focus .title{font-size:15px;line-height:1.42;font-weight:500;letter-spacing:-.005em;overflow-wrap:anywhere}
+.task.done .title{text-decoration:line-through;color:var(--faint);font-weight:400}
+.task .meta{display:flex;align-items:center;gap:6px 12px;margin-top:7px;flex-wrap:wrap}
+.task .meta button{
+  border:0;background:none;color:var(--soft);font-size:12.5px;font-weight:500;
+  padding:3px 0;text-decoration:underline;text-underline-offset:2.5px;text-decoration-color:var(--line);
+}
+.task .meta button:hover{color:var(--ink);text-decoration-color:var(--soft)}
+/* The primary .go button is a full-width block elsewhere. Inside a task row it is
+   a small inline link, so every one of those block properties has to be undone
+   here or each task grows to three stacked lines. */
+.task .meta .go{
+  color:var(--ai);font-weight:600;text-decoration-color:currentColor;opacity:.9;
+  flex:0 0 100%;text-align:left;min-height:0;padding:3px 0;font-size:12.5px;
+  border:0;background:none;letter-spacing:0;
+  display:block;justify-content:flex-start;
+}
+.task .meta .go:hover{opacity:1;color:var(--ai)}
+.task .meta input[type=date]{
+  border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:11.5px;
+  background:var(--ground);color:var(--soft);max-width:104px;
+}
+/* The date input already shows the due date, so the chip beside it is a
+   duplicate. Keep it only when it is carrying the overdue signal. */
+.task .due{display:none}
+.task .due.late{display:inline-block;font-size:12.5px;color:var(--now);font-weight:700}
+.task .x,.focus .x{
+  border:0;background:none;color:var(--faint);font-size:19px;line-height:1;
+  padding:6px 2px;flex:none;border-radius:6px;
+}
+.task .x:hover,.focus .x:hover{color:var(--now)}
+
+/* owner pills — the colour is the meaning */
+.owner{
+  border:1px solid transparent;border-radius:999px;padding:5px 11px;flex:none;
+  font-size:12px;font-weight:700;letter-spacing:.01em;white-space:nowrap;
+  background:var(--you-w);color:var(--you);border-color:color-mix(in srgb,var(--you) 22%,transparent);
+}
+.owner.a{background:var(--her-w);color:var(--her);border-color:color-mix(in srgb,var(--her) 22%,transparent)}
+.owner.b{background:var(--you-w);color:var(--you);border-color:color-mix(in srgb,var(--you) 22%,transparent)}
+.owner.c{background:var(--both-w);color:var(--both);border-color:color-mix(in srgb,var(--both) 22%,transparent)}
+.task .owner{margin-top:3px}
+
+/* ---------- the AI help block ---------- */
+.help{
+  padding:15px 16px 16px;background:var(--ground);
+  border-bottom:1px solid var(--hair);border-left:3px solid var(--ai);
+}
+.help h4{
+  font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ai);margin:15px 0 6px;
+}
+.help h4:first-child{margin-top:0}
+.help p{font-size:14.5px;margin:0 0 4px;line-height:1.5}
+.help ul{margin:0;padding-left:19px}
+.help li{font-size:14.5px;margin-bottom:5px;line-height:1.5}
+.help .draft{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--rs);
+  padding:13px;font-size:14px;line-height:1.55;white-space:pre-wrap;margin-top:2px;
+}
+.help .row{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
+.help .row button{
+  border:1.5px solid var(--line);background:var(--paper);border-radius:999px;
+  padding:9px 15px;font-size:13px;font-weight:600;color:var(--ink);min-height:38px;
+}
+.help .row button:hover{border-color:var(--ink)}
+
+/* ---------- adder + hide-done ---------- */
+.adder{display:flex;gap:9px;padding:13px 14px;border-top:1px solid var(--line);background:var(--ground)}
+.adder input{
+  flex:1;min-width:0;border:1.5px solid var(--line);border-radius:var(--rs);
+  padding:11px 13px;font-size:15px;background:var(--paper);min-height:var(--tap);
+}
+.adder input::placeholder{color:var(--faint)}
+.adder input:focus{border-color:var(--ink);outline:none}
+.adder button{
+  border:1.5px solid var(--ink);background:var(--ink);color:var(--ground);
+  border-radius:var(--rs);padding:0 19px;font-size:14.5px;font-weight:600;min-height:var(--tap);
+}
+.hidedone{
+  display:block;width:100%;border:0;border-top:1px solid var(--hair);background:none;
+  padding:13px;font-size:13px;font-weight:600;color:var(--soft);
+}
+.hidedone:hover{color:var(--ink);background:var(--ground)}
+
+/* ---------- text pads + primary AI buttons ---------- */
+.pad{padding:15px 14px}
+.pad textarea{
+  width:100%;border:1.5px solid var(--line);border-radius:var(--rs);padding:13px;
+  font-size:15px;line-height:1.55;background:var(--paper);resize:vertical;margin-bottom:11px;
+}
+.pad textarea::placeholder{color:var(--faint)}
+.pad textarea:focus{border-color:var(--ink);outline:none}
+.go{
+  border:1.5px solid var(--ai);background:var(--ai);color:#fff;border-radius:var(--rs);
+  padding:12px 17px;font-size:15px;font-weight:600;width:100%;min-height:var(--tap);
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;letter-spacing:-.01em;
+}
+.go:hover{filter:brightness(1.08)}
+.go:disabled{opacity:.55;cursor:default}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .go{color:#0E1411}}
+.pad .go{width:100%}
+.pad .go:disabled{opacity:.55}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chips button{
+  border:1.5px solid var(--line);background:var(--ground);border-radius:999px;
+  padding:9px 14px;font-size:13px;font-weight:500;color:var(--ink);min-height:38px;text-align:left;
+}
+.chips button:hover{border-color:var(--ink);background:var(--paper)}
+
+/* ---------- AI output ---------- */
+.out{
+  margin-top:14px;padding:16px;background:var(--ground);border-radius:var(--rs);
+  border-left:3px solid var(--ai);font-size:15px;line-height:1.6;
+}
+.out h4{
+  font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ai);margin:16px 0 6px;
+}
+.out h4:first-child{margin-top:0}
+.out p{margin:0 0 9px}
+.out ul{margin:0 0 9px;padding-left:19px}
+.out .say{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--rs);
+  padding:13px;white-space:pre-wrap;margin-bottom:9px;
+}
+.out .avoid{color:var(--now);font-size:14px}
+.out .flag{display:flex;align-items:flex-start;gap:10px;margin-bottom:9px;font-size:14.5px}
+.out .flag .dot{width:9px;height:9px;border-radius:50%;background:var(--soft);flex:none;margin-top:7px}
+.out .flag.high .dot{background:var(--now)}
+.out .flag b{font-weight:700}
+
+/* ---------- sorted preview ---------- */
+.prev{border-top:1px solid var(--line);margin-top:14px}
+.prev .p{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--hair)}
+.prev .p:last-of-type{border-bottom:0}
+.prev .p .mid{flex:1;min-width:0}
+.prev .p .title{font-size:14.5px;font-weight:500;line-height:1.4}
+.prev .p .sub2{font-size:12.5px;color:var(--soft);margin-top:2px}
+.prev .p .owner{flex:none}
+.prev .p .x{border:0;background:none;color:var(--faint);font-size:19px;line-height:1;padding:6px 2px;flex:none}
+.prev .p .x:hover{color:var(--now)}
+.prev .accept{
+  width:100%;margin-top:14px;min-height:var(--tap);
+  border:1.5px solid var(--ink);background:var(--ink);color:var(--ground);
+  border-radius:var(--rs);padding:12px;font-size:15px;font-weight:600;letter-spacing:-.01em;
+}
+.prev .accept:active{transform:translateY(1px)}
+
+/* ---------- briefs (Know tab) ---------- */
+.brief{border-bottom:1px solid var(--hair)}
+.brief:last-child{border-bottom:0}
+.brief>button{
+  width:100%;text-align:left;border:0;background:none;padding:16px 14px;
+  font-family:var(--disp);font-variation-settings:'opsz' 18;
+  font-size:16px;font-weight:700;letter-spacing:-.02em;color:var(--ink);
+  display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:var(--tap);
+}
+.brief>button:hover{background:var(--ground)}
+.brief .body{padding:2px 14px 18px;font-size:14.5px;line-height:1.62}
+.brief .body h5{
+  font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--soft);margin:17px 0 6px;
+}
+.brief .body ul{margin:0 0 9px;padding-left:19px}
+.brief .body li{margin-bottom:5px}
+.brief .body p{margin:0 0 9px}
+.brief .body .warn{
+  background:var(--now-w);border-radius:var(--rs);padding:12px 13px;
+  font-size:13.5px;color:var(--ink);margin-top:12px;line-height:1.5;
+}
+
+/* ---------- quiz ---------- */
+.qz{padding:6px 0}
+.qzq{
+  font-family:var(--disp);font-variation-settings:'opsz' 18;
+  font-size:16px;font-weight:700;letter-spacing:-.02em;padding:16px 14px 10px;
+}
+.qzo{display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 18px;border-bottom:1px solid var(--hair)}
+.qzo button{
+  border:1.5px solid var(--line);background:var(--paper);border-radius:999px;
+  padding:10px 15px;font-size:13.5px;font-weight:500;color:var(--ink);min-height:40px;
+}
+.qzo button:hover{border-color:var(--soft)}
+.qzo button.on{background:var(--ink);border-color:var(--ink);color:var(--ground);font-weight:600}
+
+/* ---------- destinations ---------- */
+.dest{padding:16px 14px;border-bottom:1px solid var(--hair)}
+.dest:last-child{border-bottom:0}
+.dest.first{background:var(--ground)}
+.dh{display:flex;align-items:baseline;gap:11px}
+.dh .rank{
+  font-family:var(--disp);font-variation-settings:'opsz' 28;
+  font-weight:800;font-size:25px;color:var(--line);flex:none;letter-spacing:-.04em;
+}
+.dest.first .dh .rank{color:var(--both)}
+.dh .dn{font-family:var(--disp);font-variation-settings:'opsz' 20;font-size:17px;font-weight:700;letter-spacing:-.02em}
+.dm{font-size:12.5px;color:var(--soft);margin-top:3px;margin-left:36px;font-weight:500}
+.dest p{font-size:14.5px;margin:9px 0 0 36px;line-height:1.55}
+.dest p.tip{color:var(--soft);font-size:13.5px}
+.dest button{
+  margin:12px 0 0 36px;border:1.5px solid var(--line);background:var(--paper);
+  border-radius:999px;padding:9px 15px;font-size:13px;font-weight:600;color:var(--ink);min-height:38px;
+}
+.dest button:hover{border-color:var(--ink)}
+
+/* ---------- errors + spinner ---------- */
+.err{
+  margin-top:12px;padding:12px 14px;background:var(--now-w);border-radius:var(--rs);
+  border-left:3px solid var(--now);font-size:14px;color:var(--ink);line-height:1.5;
+}
+.spin{
+  width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;
+  border-radius:50%;display:inline-block;animation:sp .7s linear infinite;flex:none;
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ---------- footer ---------- */
+footer{
+  margin-top:44px;padding-top:22px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--faint);line-height:1.65;
+}
+footer button{
+  border:0;background:none;color:var(--soft);font-size:12.5px;font-weight:600;
+  padding:4px 0;text-decoration:underline;text-underline-offset:2.5px;text-decoration-color:var(--line);
+}
+footer button:hover{color:var(--ink)}
+
+.loading{padding:64px 0;text-align:center;color:var(--faint);font-size:14px}
+</style>
+
+<div id="hb"><div class="loading">Opening your home base…</div></div>
+
+<script>
+(function(){
+var KEY='praiseworld-v1', SHARED=true;
+var store=(window.storage&&window.storage.get)?window.storage:{
+  get:function(k){return new Promise(function(res,rej){var v=null;try{v=localStorage.getItem(k);}catch(e){}
+    v?res({key:k,value:v}):rej(new Error('not found'));});},
+  set:function(k,v){try{localStorage.setItem(k,v);}catch(e){}return Promise.resolve({key:k,value:v});}
+};
+function aiEndpoint(){
+  if(window.PW_AI_ENDPOINT)return window.PW_AI_ENDPOINT;
+  try{var u=localStorage.getItem('pw_ai_endpoint');if(u)return u;}catch(e){}
+  return 'https://api.anthropic.com/v1/messages';
+}
+var el=document.getElementById('hb');
+var S=null, tab='board', saveT=null, fired={}, busy={}, out={}, err={}, prev=null, openBrief=null, openHelp=null;
+
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function uid(){return Math.random().toString(36).slice(2,9);}
+function toMins(t){var p=(t||'0:0').split(':');return (+p[0])*60+(+p[1]);}
+function nowMins(){var d=new Date();return d.getHours()*60+d.getMinutes();}
+
+/* ---------- AI ---------- */
+async function claude(system,user,json){
+  var r=await fetch(aiEndpoint(),{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:system,messages:[{role:'user',content:user}]})
+  });
+  if(!r.ok) throw new Error(r.status===401||r.status===403
+    ? 'The AI features need a backend. Set your endpoint under Settings at the bottom of the page.'
+    : 'Request failed ('+r.status+')');
+  var d=await r.json();
+  var txt=(d.content||[]).map(function(i){return i.type==='text'?i.text:'';}).join('\n').trim();
+  if(!json) return txt;
+  var clean=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+  var s=clean.indexOf('{'), a=clean.indexOf('[');
+  if(a>-1&&(a<s||s===-1))s=a;
+  if(s>0)clean=clean.slice(s);
+  return JSON.parse(clean);
+}
+function ctx(){
+  /* Anything specific about the two of them comes from S.profile, which is
+     typed in under Settings and lives only in their saved state. Do not put
+     names, employers, health details or diagnoses back into this file. */
+  var s='Context. Two people who share the running of a home. '+
+    S.names.b+' is trying to take load off '+S.names.a+', who is carrying too much of it.';
+  if(S.city) s+=' They live in '+S.city+', so use local currency, local paperwork and the messaging apps vendors there actually use.';
+  if(S.profile) s+=' '+S.profile;
+  return s+' Never give medical, psychiatric, nutrition or diet advice. '+
+  'Never mention food, eating, calories or weight.';
+}
+function run(id,fn){
+  if(busy[id])return;
+  busy[id]=true; err[id]=null; render();
+  fn().then(function(v){out[id]=v;}).catch(function(e){err[id]=e.message||'Something went wrong.';})
+      .then(function(){busy[id]=false;save();render();});
+}
+
+/* ---------- state ----------
+   seed() ships neutral on purpose. It must not contain health, diagnosis,
+   medication, clinician or diet items, or anything that identifies a real
+   person — this file goes into a repo. Personal items are typed in at
+   runtime. Private context for the AI prompts lives in S.profile, set from
+   Settings, never in source. */
+function seed(){
+  var t=[],n=0;
+  function add(list,title,owner,step){t.push({id:uid(),list:list,title:title,owner:owner,done:false,due:'',step:step||0});}
+  [['Shortlist 3–4 interior designers','b'],['Check each one is CoA registered or has real built work','b'],
+   ['Ask each for 2 past client references and call them','b'],['Get an itemised BOQ from each, not a lump sum','b'],
+   ['Compare the three BOQs line by line','b'],['Agree a budget ceiling and a contingency','c'],
+   ['Check top-up on the existing home loan before any new loan','b'],['Compare top-up vs fresh renovation loan','b'],
+   ['Collect and submit bank documents','b'],['Sign contract with milestone payments and retention','c'],
+   ['Civil and plumbing changes','a'],['Electrical points and false ceiling','a'],
+   ['Modular kitchen and wardrobes','a'],['Painting','a'],['Furniture, curtains, lights','c'],
+   ['Snag list and handover','c']].forEach(function(x){n++;add('villa',x[0],x[1],n);});
+  add('life','Electricity and water connection for the villa','b');
+  add('life','Property tax and society registration','b');
+  add('life','Home insurance','b');
+  add('us','Book somewhere for Sunday — you pick, you book','b');
+  add('us','Send one message midweek that is not about a task','b');
+  add('us','One hour in the evening with no logistics talk','b');
+  add('us','Plan one surprise this month','b');
+  return t;
+}
+function fresh(){return{names:{a:'Her',b:'Me'},city:'',profile:'',note:{text:'',by:'b',date:''},
+  meds:[{id:'m1',label:'Morning dose',time:'09:00'},{id:'m2',label:'Second dose',time:'14:00'}],
+  medLog:{},tasks:seed(),focus:{date:'',ids:[]},wins:[],sync:'',hideDone:true};}
+function save(){clearTimeout(saveT);saveT=setTimeout(function(){
+  try{store.set(KEY,JSON.stringify(S),SHARED);}catch(e){console.error(e);} },400);}
+function load(){
+  store.get(KEY,SHARED).then(function(r){
+    try{S=r&&r.value?JSON.parse(r.value):fresh();}catch(e){S=fresh();}
+    if(!S||!S.tasks)S=fresh();
+    render();
+  }).catch(function(){S=fresh();render();});
+}
+function open_(){return S.tasks.filter(function(t){return !t.done;});}
+function counts(){var c={a:0,b:0,c:0};open_().forEach(function(t){c[t.owner]=(c[t.owner]||0)+1;});return c;}
+function ownerLabel(o){return o==='a'?S.names.a:o==='b'?S.names.b:'Both';}
+function fmtDue(d){if(!d)return '';if(d===today())return 'today';
+  return new Date(d+'T00:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'});}
+
+/* ---------- render ---------- */
+function render(){
+  if(!S)return;
+  try{ draw(); }
+  catch(e){ bail(e); }
+}
+/* Last line of defence. render() used to blank the page on any thrown error,
+   which looked like data loss. Nothing is saved from here, so the state on
+   disk is still whatever last saved cleanly — hence the copy button. */
+function bail(e){
+  console.error(e);
+  var msg=(e&&e.message)?e.message:String(e);
+  el.innerHTML='<div class="wordmark">PraiseWorld</div>'+
+    '<section><h2>This page failed to draw</h2>'+
+    '<p class="sub">Your board is not lost. Nothing was deleted — the page just could not render.</p>'+
+    '<div class="card"><div class="med"><div class="l">'+esc(msg)+'</div></div></div>'+
+    '<div class="alarm"><button id="bail-reload">Reload the page</button>'+
+    '<button id="bail-copy">Copy my data</button></div>'+
+    '<p class="sub" style="margin-top:9px">If reloading does not fix it, copy your data first, '+
+    'then use Start over. Paste the copy somewhere safe so nothing is lost.</p></section>';
+  var rl=document.getElementById('bail-reload');
+  if(rl)rl.onclick=function(){location.reload();};
+  var cp=document.getElementById('bail-copy');
+  if(cp)cp.onclick=function(){
+    var txt='';
+    try{txt=JSON.stringify(S);}catch(e2){cp.textContent='Could not read data';return;}
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){cp.textContent='Copied ✓';},
+        function(){cp.textContent='Copy blocked — see console';console.log(txt);});
+    }else{cp.textContent='Copy blocked — see console';console.log(txt);}};
+}
+function draw(){
+  if(S.focus.date!==today())S.focus={date:today(),ids:[]};
+  var h='';
+  var d=new Date();
+  h+='<div class="wordmark">PraiseWorld</div>';
+  h+='<div class="topline"><div class="date">'+esc(d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'}))+'</div></div>';
+  h+='<nav>'+['board','Board','unload','Unload','surprise','Surprise','us','Us','know','Know'].reduce(function(a,v,i,arr){
+    return i%2===0?a+'<button data-tab="'+v+'" class="'+(tab===v?'on':'')+'">'+arr[i+1]+'</button>':a;},'')+'</nav>';
+  h+= tab==='board'?board() : tab==='unload'?unload() : tab==='surprise'?surprise() : tab==='us'?us()+ask() : know();
+  h+='<footer>You both see and edit the same page. The AI drafts and sorts — it does not decide anything medical. '+
+     '<button id="rename">Names and context</button> · <button id="endpoint">AI endpoint</button> · <button id="reset">Start over</button></footer>';
+  el.innerHTML=h; wire();
+}
+
+function board(){
+  var c=counts(),tot=Math.max(1,c.a+c.b+c.c),h='';
+  h+='<div class="load"><h1>Who is carrying what</h1><div class="bar">'+
+     '<span class="s-her" style="flex-grow:'+c.a+'">'+(c.a||'')+'</span>'+
+     '<span class="s-you" style="flex-grow:'+c.b+'">'+(c.b||'')+'</span>'+
+     '<span class="s-both" style="flex-grow:'+c.c+'">'+(c.c||'')+'</span></div>'+
+     '<div class="legend"><span><i style="background:var(--her)"></i>'+esc(S.names.a)+'</span>'+
+     '<span><i style="background:var(--you)"></i>'+esc(S.names.b)+'</span>'+
+     '<span><i style="background:var(--both)"></i>Both</span></div>';
+  var msg=c.a===0?'Nothing sits on '+S.names.a+' alone right now.':
+    c.a>c.b?S.names.a+' is holding '+c.a+' of the '+tot+' open things.':'Reasonably shared. Keep it there.';
+  h+='<p class="msg">'+esc(msg)+'</p><button class="cta" id="takeone" '+(c.a===0?'disabled':'')+'>Take one off '+esc(S.names.a)+'</button></div>';
+
+  var log=S.medLog[today()]||[];
+  h+='<section><h2>Medication</h2><p class="sub">Tap when taken. Resets each morning.</p><div class="card">';
+  S.meds.forEach(function(m){
+    var taken=log.indexOf(m.id)>-1, late=!taken&&nowMins()>toMins(m.time);
+    h+='<div class="med '+(late?'late':'')+'"><div class="t">'+esc(m.time)+'</div><div class="l">'+esc(m.label)+
+       (late?' · overdue':'')+'<br><input type="time" value="'+esc(m.time)+'" data-medtime="'+m.id+'"></div>'+
+       '<button class="tick '+(taken?'on':'')+'" data-med="'+m.id+'">'+(taken?'✓':'')+'</button></div>';
+  });
+  h+='</div><div class="alarm"><button id="notif">Turn on reminders</button>Works while this page is open — keep a phone alarm as the real backup.</div></section>';
+
+  h+='<section><h2>Three things today</h2><p class="sub">Only three. Everything else waits.</p><div class="card focus">';
+  for(var i=0;i<3;i++){
+    var id=S.focus.ids[i], t=id?S.tasks.find(function(x){return x.id===id;}):null;
+    h+='<div class="slot"><span class="n">'+(i+1)+'</span>';
+    h+= t? '<button class="box '+(t.done?'on':'')+'" data-toggle="'+t.id+'">✓</button><div class="mid"><div class="title" style="'+
+        (t.done?'text-decoration:line-through;color:var(--soft)':'')+'">'+esc(t.title)+'</div></div>'+
+        '<button class="owner '+t.owner+'" data-cycle="'+t.id+'">'+esc(ownerLabel(t.owner))+'</button>'+
+        '<button class="x" data-unfocus="'+t.id+'">×</button>'
+      : '<span class="empty">Pin something from below</span>';
+    h+='</div>';
+  }
+  h+='</div></section>';
+  h+=list('villa','The villa','Interiors in order. The research and bank legwork is already on you.',true);
+  h+=list('life','Life admin','The appointments and paperwork that eat a Saturday.',false);
+
+  h+='<section><h2>Sunday catch-up</h2><p class="sub">Twenty minutes so nothing lives only in her head.</p><div class="card"><div class="pad">'+
+     '<button class="go" data-run="brief" '+(busy.brief?'disabled':'')+'>'+(busy.brief?'<span class="spin"></span>Reading the board…':'Write this week\u2019s agenda')+'</button>';
+  if(err.brief)h+='<div class="err">'+esc(err.brief)+'</div>';
+  if(out.brief)h+='<div class="out">'+md(out.brief)+'</div>';
+  h+='<button class="cta" id="syncdone" style="background:var(--ground);color:var(--ink);border-color:var(--line)">'+
+     (S.sync===today()?'Done today ✓':'Mark catch-up done')+'</button></div>';
+  if(S.wins.length){
+    h+='<div style="border-top:1px solid var(--line);padding:13px 14px"><div style="font-size:12.5px;color:var(--soft);margin-bottom:7px">Recently moved onto '+esc(S.names.b)+'</div>';
+    S.wins.slice(0,5).forEach(function(w){h+='<div style="font-size:13.5px;margin-bottom:4px">'+esc(w.t)+'</div>';});
+    h+='</div>';
+  }
+  h+='</div></section>';
+  return h;
+}
+
+function list(key,title,sub,numbered){
+  var ts=S.tasks.filter(function(t){return t.list===key;});
+  var shown=S.hideDone?ts.filter(function(t){return !t.done;}):ts;
+  var doneN=ts.length-ts.filter(function(t){return !t.done;}).length;
+  var h='<section><h2>'+esc(title)+'</h2><p class="sub">'+esc(sub)+'</p><div class="card">';
+  if(!shown.length)h+='<div style="padding:16px 13px;color:var(--soft);font-size:14px">Nothing here. Add the thing you are dreading.</div>';
+  shown.forEach(function(t){
+    h+='<div class="task '+(t.done?'done':'')+'">'+
+       (numbered&&t.step?'<span class="num">'+t.step+'</span>':'')+
+       '<button class="box '+(t.done?'on':'')+'" data-toggle="'+t.id+'">✓</button><div class="mid">'+
+       '<div class="title">'+esc(t.title)+'</div><div class="meta">'+
+       '<button class="go" data-help="'+t.id+'">'+(busy['h'+t.id]?'thinking…':(t.help?'open steps':'✦ do this for me'))+'</button>'+
+       '<button data-pin="'+t.id+'">'+(S.focus.ids.indexOf(t.id)>-1?'pinned':'+ today')+'</button>'+
+       '<input type="date" value="'+esc(t.due)+'" data-due="'+t.id+'">'+
+       (t.due?'<span class="due '+(t.due<=today()?'late':'')+'">'+esc(fmtDue(t.due))+'</span>':'')+
+       '</div></div><button class="owner '+t.owner+'" data-cycle="'+t.id+'">'+esc(ownerLabel(t.owner))+'</button>'+
+       '<button class="x" data-del="'+t.id+'">×</button></div>';
+    if(err['h'+t.id])h+='<div class="help"><div class="err" style="margin:0">'+esc(err['h'+t.id])+'</div></div>';
+    if(t.help&&openHelp===t.id)h+=helpBlock(t);
+  });
+  h+='<div class="adder"><input placeholder="Add to '+esc(title.toLowerCase())+'" data-add="'+key+'"><button data-addbtn="'+key+'">Add</button></div>';
+  if(doneN)h+='<button class="hidedone" data-hd="1">'+(S.hideDone?('Show '+doneN+' finished'):'Hide finished')+'</button>';
+  return h+'</div></section>';
+}
+function helpBlock(t){
+  var p=t.help,h='<div class="help">';
+  if(p.next)h+='<h4>Start here</h4><p>'+esc(p.next)+'</p>';
+  if(p.steps&&p.steps.length){h+='<h4>Then</h4><ul>';p.steps.forEach(function(s){h+='<li>'+esc(s)+'</li>';});h+='</ul>';}
+  if(p.ask&&p.ask.length){h+='<h4>Ask them</h4><ul>';p.ask.forEach(function(s){h+='<li>'+esc(s)+'</li>';});h+='</ul>';}
+  if(p.draft)h+='<h4>'+esc(p.draft_label||'Send this')+'</h4><div class="draft" id="d'+t.id+'">'+esc(p.draft)+'</div>';
+  if(p.watch)h+='<h4>Watch out</h4><p>'+esc(p.watch)+'</p>';
+  h+='<div class="row">'+(p.draft?'<button data-copy="'+t.id+'">Copy</button>':'')+
+     '<button data-help="'+t.id+'" data-again="1">Redo</button><button data-closehelp="1">Close</button></div></div>';
+  return h;
+}
+
+function unload(){
+  var h='<section><h2>Empty her head</h2><p class="sub">Paste everything, in any order, however messy. It gets sorted, assigned and dated.</p>'+
+    '<div class="card"><div class="pad">'+
+    '<textarea id="dump" rows="7" placeholder="the electrician never called back, need to tell the bank about the salary slip, my prescription runs out next week, someone has to chase the designer for the revised quote, the society wants the registration papers…">'+esc(S.dump||'')+'</textarea>'+
+    '<button class="go" data-run="sort" '+(busy.sort?'disabled':'')+'>'+(busy.sort?'<span class="spin"></span>Sorting…':'Sort this into a plan')+'</button>';
+  if(err.sort)h+='<div class="err">'+esc(err.sort)+'</div>';
+  h+='</div>';
+  if(prev&&prev.length){
+    h+='<div class="prev">';
+    prev.forEach(function(p,i){
+      h+='<div class="p"><div class="mid"><div class="title">'+esc(p.title)+'</div>'+
+         '<div class="sub2">'+esc(p.list==='villa'?'Villa':'Life admin')+(p.why?' · '+esc(p.why):'')+'</div></div>'+
+         '<button class="owner '+p.owner+'" data-pcycle="'+i+'">'+esc(ownerLabel(p.owner))+'</button>'+
+         '<button class="x" data-pdel="'+i+'">×</button></div>';
+    });
+    h+='<button class="accept" id="accept">Add all '+prev.length+' to the board</button></div>';
+  }
+  return h+'</section>';
+}
+
+function ask(){
+  var h='<section><h2>What do I say</h2><p class="sub">Describe the moment. Get words that fit it, not a lecture.</p>'+
+    '<div class="card"><div class="pad">'+
+    '<textarea id="mom" rows="4" placeholder="She snapped at me about the designer not replying, then went quiet. I think she is angry at herself, not me.">'+esc(S.mom||'')+'</textarea>'+
+    '<div class="chips">'+['She is crying and will not say why','She snapped at me over something small','She says she is failing at everything','She says I never help','She is frozen and cannot start anything']
+      .map(function(c){return '<button data-chip="'+esc(c)+'">'+esc(c)+'</button>';}).join('')+'</div>'+
+    '<button class="go" data-run="say" '+(busy.say?'disabled':'')+'>'+(busy.say?'<span class="spin"></span>Thinking…':'Give me the words')+'</button>';
+  if(err.say)h+='<div class="err">'+esc(err.say)+'</div>';
+  if(out.say){
+    var r=out.say;
+    h+='<div class="out">';
+    if(r.read)h+='<h4>What is probably going on</h4><p style="margin:0 0 12px">'+esc(r.read)+'</p>';
+    if(r.say&&r.say.length){h+='<h4>Say something like this</h4>';r.say.forEach(function(s){h+='<div class="say">'+esc(s)+'</div>';});}
+    if(r.avoid)h+='<h4>Do not say</h4><div class="avoid">'+esc(r.avoid)+'</div>';
+    if(r.then)h+='<h4>Afterwards</h4><p style="margin:0">'+esc(r.then)+'</p>';
+    h+='</div>';
+  }
+  h+='</div></div></section>';
+
+  h+='<section><h2>Check a quote</h2><p class="sub">Paste a designer\u2019s quote or BOQ. It gets read against what usually goes wrong.</p>'+
+    '<div class="card"><div class="pad">'+
+    '<textarea id="quote" rows="6" placeholder="Paste the quote text, or type the line items and totals as they gave them to you.">'+esc(S.quote||'')+'</textarea>'+
+    '<button class="go" data-run="quote" '+(busy.quote?'disabled':'')+'>'+(busy.quote?'<span class="spin"></span>Reading it…':'Find the holes in it')+'</button>';
+  if(err.quote)h+='<div class="err">'+esc(err.quote)+'</div>';
+  if(out.quote){
+    var q=out.quote;h+='<div class="out">';
+    if(q.verdict)h+='<h4>Verdict</h4><p style="margin:0 0 13px">'+esc(q.verdict)+'</p>';
+    if(q.flags&&q.flags.length){h+='<h4>Problems</h4>';q.flags.forEach(function(f){
+      h+='<div class="flag '+(f.severity||'med')+'"><span class="dot"></span><div><b>'+esc(f.issue)+'</b><br>'+esc(f.why||'')+'</div></div>';});}
+    if(q.missing&&q.missing.length){h+='<h4>Not in the quote</h4><ul style="margin:0 0 13px;padding-left:17px">';
+      q.missing.forEach(function(m){h+='<li>'+esc(m)+'</li>';});h+='</ul>';}
+    if(q.reply)h+='<h4>Send them this</h4><div class="draft" style="background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:11px;white-space:pre-wrap;font-size:13px" id="qreply">'+esc(q.reply)+'</div><div class="row" style="display:flex;gap:7px;margin-top:8px"><button data-copyq="1" style="border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600">Copy</button></div>';
+    h+='</div>';
+  }
+  return h+'</div></div></section>';
+}
+
+
+
+var DESTS=[
+ {n:'Hesaraghatta Lake and grasslands',d:30,hrs:'Half day',see:'birds',water:2,effort:1,quiet:2,
+  w:'Thirty kilometres out and the closest thing to real birding without a whole day gone. Kingfishers, cormorants, sandpipers and terns feed here, and in winter migrants like northern pintails and garganeys arrive.',
+  tip:'Go at first light. The grassland light is gone by nine and so is most of the bird activity.',season:'Best November to February'},
+ {n:'Ranganathittu Bird Sanctuary',d:125,hrs:'Full day',see:'birds',water:2,effort:1,quiet:1,
+  w:'Sixty-seven hectares on the Kaveri with around 200 species. Painted storks, herons, egrets and pelicans nest here, and the boat takes you close enough that you stop needing binoculars. Mugger crocodiles bask on the banks.',
+  tip:'Entry is about \u20b950 and the sanctuary opens at 9am. The boat ride runs 30\u201340 minutes; the gardens and paths add an hour or two, so a half to full day covers it. Take cash for tickets.',season:'Nesting season is December to June; December is usually the peak for migrants'},
+ {n:'Bannerghatta butterfly park and forest',d:22,hrs:'Half day',see:'butterflies',water:0,effort:1,quiet:0,
+  w:'Twenty-two kilometres from the city, with a butterfly park inside the national park and forest around it that is good for birds too. The shortest possible trip that still counts as being in nature.',
+  tip:'It gets busy. Go on a weekday morning if either of you can take a half day.',season:'Butterflies are best just after the monsoon'},
+ {n:'Nandi Hills at sunrise',d:60,hrs:'Half day',see:'birds',water:0,effort:2,quiet:0,
+  w:'Hill birding with a view, and close enough that you can be back for lunch. Leave at four and you get the mist before the crowd.',
+  tip:'Weekends are packed and the gate queue is real. Weekday, or not at all.',season:'Clear and cool October to February'},
+ {n:'Bheemeshwari on the Cauvery',d:100,hrs:'Full day',see:'birds',water:2,effort:2,quiet:2,
+  w:'River, forest and very few people. Otters, river birds and a proper sense of being out of the city for a day trip.',
+  tip:'Nature camps here can be booked for the day rather than overnight.',season:'October to March'},
+ {n:'Kabini',d:220,hrs:'Overnight',see:'wildlife',water:2,effort:2,quiet:2,
+  w:'The one worth taking two days for. Backwaters, coracle rides, serious birding and a real chance of big wildlife.',
+  tip:'Book the safari well ahead \u2014 this is the one place where turning up hopeful does not work.',season:'Good most of the year; March to May for mammals'},
+ {n:'Coorg',d:255,hrs:'Long weekend',see:'wildlife',water:1,effort:2,quiet:1,
+  w:'About 250 kilometres and six hours of driving into coffee plantations, pepper vines and rainforest. Slow, green, and nothing on the itinerary.',
+  tip:'Stay on an estate rather than in Madikeri town. The point is waking up inside the trees.',season:'October to April; June to September if she likes rain and mist'},
+ {n:'Agumbe',d:380,hrs:'Long weekend',see:'butterflies',water:1,effort:3,quiet:2,
+  w:'Called the Cherrapunji of the South. Evergreen rainforest, a biodiversity hotspot, waterfalls at Onake Abbi and Barkana, and the rainforest research station. Hornbills if you are patient.',
+  tip:'Leech-proof socks, and do not drive the ghat roads after dark.',season:'Spectacular in monsoon, June to September \u2014 which is also the hardest going'},
+ {n:'Gokarna',d:480,hrs:'Long weekend',see:'crabs',water:3,effort:2,quiet:2,
+  w:'Around nine hours away. Rock pools, sand crabs, and beaches far calmer than Goa. Skip Kudle and Om for Half Moon and Paradise if you want the quiet version.',
+  tip:'Crabs and rock pools are a low-tide activity \u2014 check the tide table before you pick the day.',season:'October to March'},
+ {n:'The Mangalore coast',d:350,hrs:'Long weekend',see:'crabs',water:3,effort:1,quiet:1,
+  w:'Coast, estuaries and mangroves, and the Vistadome train down is genuinely part of the trip rather than the cost of it.',
+  tip:'The train takes most of a day each way \u2014 plan around it rather than fighting it.',season:'October to March'},
+ {n:'Lalbagh, early morning',d:5,hrs:'A few hours',see:'birds',water:1,effort:1,quiet:1,
+  w:'The version that needs no planning at all. Lake, old trees, resident water birds, and free before the ticket window opens.',
+  tip:'One gate, one loop. Trying to see all 240 acres is how a calm morning becomes a march.',season:'Any time; coolest before 8am'},
+ {n:'Cubbon Park',d:3,hrs:'A few hours',see:'butterflies',water:0,effort:1,quiet:1,
+  w:'Free, unbookable, undemanding. Old trees, parakeets and enough butterflies in the quieter corners. The one for a week where nothing else is possible.',
+  tip:'Closed Mondays. Enter from the Queens Road side for the quieter paths.',season:'Any time'}
+];
+var QS=[
+ {k:'time',q:'How much time have you actually got?',o:[['A few hours','A few hours'],['A full day','Full day'],['One night away','Overnight'],['A long weekend','Long weekend']]},
+ {k:'see',q:'What would light her up most?',o:[['Birds on water','birds'],['Butterflies and small things','butterflies'],['Crabs, rock pools, sea','crabs'],['Forest and big animals','wildlife']]},
+ {k:'far',q:'How far are you willing to drive?',o:[['Stay in the city','30'],['Up to two hours','120'],['Up to six hours','280'],['However far it takes','999']]},
+ {k:'energy',q:'How much is she up for?',o:[['Sitting and looking','1'],['Gentle walking','2'],['A proper walk','3']]},
+ {k:'crowd',q:'Crowds?',o:[['Does not matter','0'],['Rather avoid them','1'],['It has to be quiet','2']]},
+ {k:'water',q:'Does there need to be water?',o:[['Yes, water or nothing','3'],['Would be nice','1'],['Not important','0']]}
+];
+function score(d,A){
+  var s=0;
+  if(A.time===d.hrs)s+=4; else{
+    var order=['A few hours','Half day','Full day','Overnight','Long weekend'];
+    var gap=Math.abs(order.indexOf(A.time==='A few hours'?'A few hours':A.time)-order.indexOf(d.hrs));
+    s+= gap===1?2:gap===2?0:-3;
+  }
+  if(A.see===d.see)s+=5;
+  if(+A.far>=d.d)s+=3; else s-= (d.d-(+A.far))>200?6:3;
+  if(+A.energy>=d.effort)s+=2; else s-=3;
+  s+= Math.min(+A.crowd,2)*(d.quiet-1);
+  if(+A.water===3)s+= d.water>=2?3:-4;
+  else if(+A.water===1)s+= d.water>=1?1:0;
+  return s;
+}
+var quizAns={}, quizDone=false;
+function surprise(){
+  var h='<section><h2>Where does she want to go?</h2><p class="sub">Six questions. Answer them as she would, not as you would.</p>';
+  h+='<div class="card"><div class="pad">';
+  QS.forEach(function(q){
+    h+='<div class="qz"><div class="qzq">'+esc(q.q)+'</div><div class="qzo">';
+    q.o.forEach(function(o){
+      h+='<button class="'+(quizAns[q.k]===o[1]?'on':'')+'" data-ans="'+q.k+'" data-val="'+esc(o[1])+'">'+esc(o[0])+'</button>';
+    });
+    h+='</div></div>';
+  });
+  var ready=QS.every(function(q){return quizAns[q.k];});
+  h+='<button class="go" data-quiz="1" '+(ready?'':'disabled')+'>'+(ready?'Show me where to take her':'Answer all six')+'</button>';
+  h+='<button data-quizreset="1" style="width:100%;margin-top:8px;border:0;background:none;color:var(--soft);font-size:12.5px;text-decoration:underline">Clear answers</button>';
+  h+='</div></div>';
+
+  if(quizDone){
+    var ranked=DESTS.map(function(d){return {d:d,s:score(d,quizAns)};}).sort(function(a,b){return b.s-a.s;});
+    var top=ranked.slice(0,3);
+    h+='<section style="margin-top:24px"><h2>Take her here</h2><p class="sub">Ranked against the six answers. The first one is the pick.</p>';
+    top.forEach(function(r,i){
+      h+='<div class="dest '+(i===0?'first':'')+'">'+
+         '<div class="dh"><span class="rank">'+(i+1)+'</span><span class="dn">'+esc(r.d.n)+'</span></div>'+
+         '<div class="dm">'+esc(r.d.hrs)+' \u00b7 about '+r.d.d+' km \u00b7 '+esc(r.d.season)+'</div>'+
+         '<p>'+esc(r.d.w)+'</p><p class="tip">'+esc(r.d.tip)+'</p>'+
+         '<button data-plan="'+esc(r.d.n)+'" '+(busy['p'+i]?'disabled':'')+'>'+(busy['p'+i]?'Planning\u2026':'Plan this properly')+'</button>'+
+         '</div>';
+    });
+    if(err.plan)h+='<div class="err">'+esc(err.plan)+'</div>';
+    if(out.plan){
+      var pl=out.plan;
+      h+='<div class="out">';
+      if(pl.day)h+='<h4>The day</h4>'+md(pl.day);
+      if(pl.book&&pl.book.length){h+='<h4>Book or check first</h4><ul style="margin:0 0 13px;padding-left:17px">';
+        pl.book.forEach(function(b){h+='<li>'+esc(b)+'</li>';});h+='</ul>';}
+      if(pl.pack&&pl.pack.length){h+='<h4>Take</h4><p style="margin:0 0 13px">'+esc(pl.pack.join(', '))+'</p>';}
+      if(pl.tell)h+='<h4>Tell her like this</h4><div class="draft" id="plandraft" style="background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:11px;white-space:pre-wrap;font-size:13px">'+esc(pl.tell)+'</div>'+
+        '<div style="margin-top:8px;display:flex;gap:7px"><button data-copyplan="1" style="border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600">Copy</button>'+
+        '<button data-addplan="'+esc(pl.task||'Book the trip')+'" style="border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600">Add to my list</button></div>';
+      h+='</div>';
+    }
+    h+='</section>';
+  }
+  return h+'</section>';
+}
+function doPlan(name){
+  var d=DESTS.filter(function(x){return x.n===name;})[0]||{};
+  return claude(ctx()+' You plan one nature outing. She loves birds, butterflies, crabs and small living things, and she is exhausted, so the plan must remove decisions rather than add them. '+
+    'Reply with JSON only, keys: "day" (plain text, a simple hour-by-hour outline from leaving home to getting back, no headings, short lines), '+
+    '"book" (array of things to book, check or call ahead, with who to contact), "pack" (array of 4\u20138 items), '+
+    '"tell" (a short warm message telling her the plan is already sorted and she has to do nothing), "task" (a six-word task title for his own list). '+
+    'Be specific about timings, entry fees and Bangalore road realities. Do not mention food, meals, eating or restaurants anywhere.',
+    'Destination: '+name+'. Notes: '+(d.w||'')+' '+(d.tip||'')+' '+(d.season||'')+
+    '\nThey have: '+quizAns.time+'. Her energy: '+quizAns.energy+' of 3. Today is '+today()+'.',true);
+}
+
+var BOOKS=[
+ {t:'The ADHD Effect on Marriage',a:'Melissa Orlov',w:'The one to start with. It names the specific trap you are in \u2014 one partner becomes the parent and manager, the other becomes the child who keeps failing \u2014 and shows how both people build it without meaning to. Written for the non-ADHD partner as much as the ADHD one.'},
+ {t:'Is It You, Me, or Adult A.D.D.?',a:'Gina Pera',w:'Blunter and more practical on the daily friction: forgotten things, unfinished projects, the resentment that builds when one person carries the logistics.'},
+ {t:'Driven to Distraction',a:'Edward Hallowell and John Ratey',w:'The classic explainer. Read this if you want to actually understand what her brain is doing rather than just managing the fallout.'},
+ {t:'How to Keep House While Drowning',a:'KC Davis',w:'Short, gentle, readable in an evening. Reframes housework as morally neutral rather than a test she keeps failing. Good one to leave lying around rather than hand over.'},
+ {t:'Hold Me Tight',a:'Sue Johnson',w:'On the pattern underneath most fights \u2014 one person pushing for connection, the other retreating. Has structured conversations you can do together.'},
+ {t:'The Seven Principles for Making Marriage Work',a:'John Gottman',w:'The research-backed one. The chapters on repair after conflict and on turning towards small bids for attention are the useful part here.'},
+ {t:'Nonviolent Communication',a:'Marshall Rosenberg',w:'Useful when you keep saying the wrong thing in the moment. Skip the philosophy, use the structure.'}
+];
+var SPOTS=[
+ {n:'Cubbon Park',w:'Free, no booking, no decisions. The default when she has nothing left. Closed Mondays.'},
+ {n:'Lalbagh Botanical Garden',w:'Early morning is quieter and free before the ticket window opens. It is huge \u2014 pick one gate and one loop, do not try to see it all.'},
+ {n:'National Gallery of Modern Art, Vasanth Nagar',w:'\u20b920 entry, heritage mansion with lawns and a cafe. Quiet by design, no need to fill the silence. Closed Mondays.'},
+ {n:'Dyu Art Cafe, Koramangala',w:'Old Bangalore house, courtyard, calm. Go before 5pm on a weekend or you will be queueing, which defeats the point.'},
+ {n:'Iris Cafe & Kitchen, JP Nagar',w:'Green and garden-like, open till 11pm \u2014 the one that still works after a late finish.'},
+ {n:'Olive Beach, Ashok Nagar',w:'When you want it to feel like an occasion. Book ahead, valet parking, so she does zero logistics.'}
+];
+var openBook=null;
+function us(){
+  var h=list('us','Your side of it','Relationship work is work. It counts on the bar like everything else.',false);
+  h+='<section><h2>Think of something</h2><p class="sub">Tell it how she is doing and how much you have. It suggests something real, not roses.</p><div class="card"><div class="pad">'+
+    '<textarea id="sur" rows="3" placeholder="She has had a brutal week, layoffs at work made everyone tense. I have Saturday free and about \u20b93000. She hates surprises that need her to dress up.">'+esc(S.sur||'')+'</textarea>'+
+    '<div class="chips">'+['I have 20 minutes tonight','I have Saturday free','Under \u20b9500','She is too tired to leave the house','Something for the villa','Nothing planned, need one idea now']
+      .map(function(c){return '<button data-schip="'+esc(c)+'">'+esc(c)+'</button>';}).join('')+'</div>'+
+    '<button class="go" data-run="surprise" '+(busy.surprise?'disabled':'')+'>'+(busy.surprise?'<span class="spin"></span>Thinking\u2026':'Give me three ideas')+'</button>';
+  if(err.surprise)h+='<div class="err">'+esc(err.surprise)+'</div>';
+  if(out.surprise&&out.surprise.ideas){
+    h+='<div class="out">';
+    out.surprise.ideas.forEach(function(i){
+      h+='<div style="margin-bottom:15px"><h4 style="margin-bottom:4px">'+esc(i.title)+'</h4>'+
+         '<p style="margin:0 0 5px">'+esc(i.what)+'</p>'+
+         '<p style="margin:0;font-size:12.5px;color:var(--soft)">'+esc(i.effort||'')+(i.why?' \u00b7 '+esc(i.why):'')+'</p>'+
+         (i.add?'<button data-addidea="'+esc(i.title)+'" style="margin-top:7px;border:1px solid var(--line);background:var(--ground);border-radius:7px;padding:5px 10px;font-size:12.5px;font-weight:600">Add to my list</button>':'')+
+         '</div>';
+    });
+    h+='</div>';
+  }
+  h+='</div></div></section>';
+
+  h+='<section><h2>After a fight</h2><p class="sub">For the hour afterwards, when you know you should say something and everything sounds wrong.</p><div class="card"><div class="pad">'+
+    '<textarea id="rep" rows="3" placeholder="She said I never help and I got defensive and listed everything I do. She left the room. It has been an hour.">'+esc(S.rep||'')+'</textarea>'+
+    '<button class="go" data-run="repair" '+(busy.repair?'disabled':'')+'>'+(busy.repair?'<span class="spin"></span>Thinking\u2026':'Help me repair this')+'</button>';
+  if(err.repair)h+='<div class="err">'+esc(err.repair)+'</div>';
+  if(out.repair){
+    var r=out.repair;h+='<div class="out">';
+    if(r.mine)h+='<h4>Your part in it</h4><p style="margin:0 0 13px">'+esc(r.mine)+'</p>';
+    if(r.open)h+='<h4>Open with this</h4><div class="say">'+esc(r.open)+'</div>';
+    if(r.text)h+='<h4>Or send it, if talking is worse right now</h4><div class="draft" id="repdraft" style="background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:11px;white-space:pre-wrap;font-size:13px">'+esc(r.text)+'</div><div style="margin-top:8px"><button data-copyrep="1" style="border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600">Copy</button></div>';
+    if(r.avoid)h+='<h4 style="margin-top:13px">Do not</h4><div class="avoid">'+esc(r.avoid)+'</div>';
+    if(r.later)h+='<h4>When you are both calm</h4><p style="margin:0">'+esc(r.later)+'</p>';
+    h+='</div>';
+  }
+  h+='</div></div></section>';
+
+  h+='<section><h2>Read one of these</h2><p class="sub">One chapter a week beats buying all seven. Start at the top.</p>';
+  BOOKS.forEach(function(b,i){
+    h+='<div class="brief"><button data-book="'+i+'"><span>'+esc(b.t)+'<br><span style="font-family:var(--sans);font-weight:400;font-size:12.5px;color:var(--soft)">'+esc(b.a)+'</span></span><span style="color:var(--soft);font-weight:400">'+(openBook===i?'\u2212':'+')+'</span></button>';
+    if(openBook===i)h+='<div class="body"><p>'+esc(b.w)+'</p></div>';
+    h+='</div>';
+  });
+  h+='</section>';
+
+  h+='<section><h2>Where to take her</h2><p class="sub">Bangalore, picked for low effort and low noise rather than impressive.</p><div class="card">';
+  SPOTS.forEach(function(sp,i){
+    h+='<div style="padding:13px;border-bottom:'+(i===SPOTS.length-1?'0':'1px solid var(--line)')+'">'+
+       '<div style="font-family:var(--disp);font-weight:800;font-size:14.5px;margin-bottom:3px">'+esc(sp.n)+'</div>'+
+       '<div style="font-size:13px;color:var(--soft);line-height:1.5">'+esc(sp.w)+'</div></div>';
+  });
+  h+='</div><div style="font-size:11.5px;color:var(--soft);margin-top:7px">Hours and details from Google Maps \u2014 check before you go.</div></section>';
+  return h;
+}
+function doSurprise(){
+  var v=(document.getElementById('sur')||{}).value||'';
+  S.sur=v;
+  if(!v.trim())return Promise.reject(new Error('Tell it how she is doing first.'));
+  return claude(ctx()+' You suggest things '+S.names.b+' can actually do for '+S.names.a+' this week. Reply with JSON only: '+
+    '{"ideas":[{"title":"","what":"","effort":"","why":"","add":true}]} with exactly three ideas. '+
+    'Rules: at least one must take under 20 minutes and cost nothing. At least one must be an act of removing work from her rather than adding an event to her calendar. '+
+    'Nothing that requires her to plan, decide, dress up, or perform gratitude. Nothing generic \u2014 no flowers, no chocolates, no spa day, no candlelit dinner. '+
+    'Be specific to Bangalore where a place is involved. "effort" states time and rough rupee cost. "why" is at most eight words on what it gives her. '+
+    'Never suggest anything involving food as a gift, cooking her a meal, ordering food, or anything to do with what she eats.', v, true);
+}
+function doRepair(){
+  var v=(document.getElementById('rep')||{}).value||'';
+  S.rep=v;
+  if(!v.trim())return Promise.reject(new Error('Describe what happened first.'));
+  return claude(ctx()+' You help '+S.names.b+' repair things after an argument with his partner. Reply with JSON only, keys: '+
+    '"mine" (one or two sentences naming his own part honestly, without flattering him and without making him the villain), '+
+    '"open" (the exact opening line to say out loud \u2014 short, no defence, no explanation of his side), '+
+    '"text" (a short message he could send instead if talking would go badly right now), '+
+    '"avoid" (one sentence on the thing he will be tempted to do that will restart it \u2014 usually defending himself or listing what he does), '+
+    '"later" (one sentence on what to raise once both are calm, usually a concrete change rather than a feeling). '+
+    'Repair before explanation. Never tell him to point out that she is being unreasonable. Do not diagnose her. Do not mention food or eating. '+
+    'If what he describes sounds like it goes beyond a hard argument \u2014 anyone being frightened, threatened or hurt \u2014 say that plainly in "later" and point at professional help.', v, true);
+}
+
+var BRIEFS=[
+ {t:'What this should cost in Bangalore',b:'<p>Get a number in your head before any designer gives you one. It is the difference between negotiating and being told.</p>'+
+  '<h5>Per square foot, 2026</h5><ul><li>Budget fit-out: roughly \u20b9600\u2013900</li><li>Mid-range: roughly \u20b91,000\u20131,600</li><li>Premium: \u20b91,800 upwards, past \u20b92,500 for a full luxury build-out</li></ul>'+
+  '<p>For a newly built 3BHK villa in Bangalore the whole interior generally lands between \u20b910 lakh and \u20b935 lakh \u2014 basic packages start around \u20b910 lakh, mid-range runs \u20b915\u201325 lakh, premium goes past \u20b935 lakh. A premium 3BHK in Sarjapur, Whitefield or Devanahalli is commonly quoted \u20b918\u201332 lakh.</p>'+
+  '<h5>Where the money goes</h5><ul><li>Modular kitchen: roughly 15\u201325% of the budget</li><li>Wardrobes: roughly 12\u201318%</li><li>Between them these two decide most of your final number</li><li>Countertop material alone can swing the kitchen by \u20b930,000\u201380,000</li></ul>'+
+  '<h5>Two things people miss</h5><ul><li>18% GST applies on most interior works contracts. A \u20b97 lakh quote is about \u20b98.26 lakh all-in. Check whether every quote you compare is quoting inclusive or exclusive.</li><li>Locality moves the rate. South Bangalore areas like Koramangala run roughly 20\u201335% above east Bangalore areas like Whitefield.</li></ul>'+
+  '<p>A common rule of thumb is to budget 10\u201315% of the property value for interiors, and a designer fee of around 8\u201315% is generally considered to pay for itself through better material sourcing and avoided rework.</p>'+
+  '<div class="warn">These are market ranges, not quotes. Use them to spot a number that is wildly out of line, in either direction.</div>'},
+ {t:'Paying for the interiors',b:'<p>Three routes exist, and they are not equally priced. Check them in this order.</p>'+
+  '<h5>1. Top-up on the existing home loan</h5><p>She already has a home loan on the villa with a clean record, so this is the first thing to ask her bank about. It is typically around half a percent to one percent above her existing home loan rate — roughly 8.5–11% — and the property is already verified, so the paperwork is much lighter than a fresh application.</p>'+
+  '<h5>2. A dedicated home improvement or renovation loan</h5><p>Secured against the property, advertised from around 7.2–7.5% for strong profiles. Banks generally want a signed cost estimate from an architect or civil engineer before they will process it, so the designer\'s BOQ comes first, not after.</p>'+
+  '<h5>3. An unsecured personal loan</h5><p>Fastest — often disbursed in a day or two — but the most expensive, with rates running from around 10% up to well over 20%. Use it only for a small gap, not the main funding.</p>'+
+  '<h5>Before applying</h5><ul><li>Advertised rates go to strong credit profiles; a CIBIL score above 750 is roughly the line for best-in-class pricing.</li>'+
+  '<li>Ask for the full fee list: processing, login, legal, technical inspection, valuation.</li>'+
+  '<li>Confirm what the lender will actually fund. Some cover fixed fittings but exclude loose furniture and appliances.</li>'+
+  '<li>Interest on a self-occupied home improvement loan can be deducted up to ₹30,000 under Section 24(b) — worth confirming with a CA for her situation.</li></ul>'+
+  '<div class="warn">Rates and terms move. Treat these as what to ask about, not what you will be offered.</div>'},
+ {t:'Not getting burned by a designer',b:'<p>The single document that protects you is the BOQ — the itemised bill of quantities. A one-page lump sum is not a quote.</p>'+
+  '<h5>Every BOQ line should carry</h5><ul><li>A specific description, not "materials as per standard"</li><li>Brand and model, plus the relevant IS standard</li><li>Unit, quantity, unit rate, and whether GST is included</li><li>A remarks column stating exclusions</li></ul>'+
+  '<h5>Refuse to sign if</h5><ul><li>Lines are lump sums with no breakdown</li><li>Brand and model are missing anywhere</li><li>There is no GST clause</li><li>Rates are implausibly low — a bid far below the others usually means a spec downgrade hiding somewhere</li><li>The document is unstamped, unsigned or handwritten</li></ul>'+
+  '<h5>Vetting the firm</h5><ul><li>In India only a Council of Architecture registered person may call themselves an architect. Verify it.</li><li>Ask for two or three past client contacts and actually call them. Refusal is a red flag.</li><li>Look at completed built work, not renders.</li><li>Read the negative Google reviews specifically.</li><li>Ask who the site project manager is. Design gets attention; project management decides the outcome.</li></ul>'+
+  '<h5>Money and time</h5><ul><li>Compare three quotes line by line, not total by total.</li><li>Carpentry usually runs somewhere around half the total interior cost — it is where overruns hide.</li><li>Commonly excluded and added later: electrical modifications, civil corrections, design revisions. Industry estimates put hidden costs at roughly 8–20% of budget, so hold a contingency.</li><li>Stage payments so the money trails the work, and keep a retention amount until the snag list is closed.</li><li>Be sceptical of anyone promising a full interior in 30 days.</li></ul>'},
+ {t:'Getting her actual support',b:'<p>Two different professionals do two different jobs here, and most people only book one.</p>'+
+  '<ul><li>A <b>psychiatrist</b> handles assessment and the medication side, including prescription renewals.</li><li>A <b>clinical psychologist or ADHD therapist</b> handles the behavioural and emotional work — routines, emotional regulation, the self-esteem damage from years of feeling behind.</li></ul>'+
+  '<p>For adult ADHD, a team approach across both is the usual recommendation.</p>'+
+  '<h5>Why a specialist matters</h5><p>Generic therapy tends to assume neurotypical executive function — planners, habit stacks, just be consistent. Ask directly whether the clinician works with adult ADHD, and specifically with women, whose symptoms are more often internalised as overwhelm, masking and exhaustion rather than obvious hyperactivity.</p>'+
+  '<h5>In Bangalore specifically</h5><ul><li>NIMHANS is the premier institute in the country for adult ADHD assessment and it is in the city. Public, so expect process and waiting, but the assessment carries weight.</li><li>Cadabams has NABH-accredited facilities in Bangalore with psychiatrists, psychologists and therapists under one roof, and runs Mindtalk for outpatient assessment and medication management.</li><li>Manipal Hospitals runs a psychiatry service with outpatient consultations, CBT and medication management if you want a large-hospital route.</li><li>Whoever you call, ask one screening question first: do you assess and treat adult ADHD in women. If the answer is vague, call the next one.</li></ul>'+
+  '<h5>Practical routes in India</h5><ul><li>Online platforms with in-house ADHD teams — Amaha, Rocket Health, TherapyMantra and similar — bundle assessment, therapy and psychiatry. Session pricing commonly starts around ₹1,000 and rises with seniority.</li><li>Online often works better than in person for ADHD: no commute, which is a real barrier.</li><li>Ask about a free discovery or care-guidance call first; several platforms offer one.</li><li>Many people see meaningful change in 8–12 sessions, though it varies a lot.</li></ul>'+
+  '<h5>On the medication timing</h5><p>Forgetting doses is one of the most documented barriers in adult ADHD, not a personal failing — the condition itself interferes with remembering. Two things that show up repeatedly: external reminders that are not her own phone, and someone else holding the prescription-renewal and appointment calendar so supply never runs out. That second one is a job you can take entirely.</p>'+
+  '<div class="warn">This is orientation, not clinical advice. What she needs comes from the clinician who assesses her.</div>'}
+];
+function know(){
+  var h='<section><h2>What I found out</h2><p class="sub">Researched so neither of you has to. Turn any of it into tasks below.</p>';
+  BRIEFS.forEach(function(b,i){
+    h+='<div class="brief"><button data-brief="'+i+'">'+esc(b.t)+'<span style="color:var(--soft);font-weight:400">'+(openBrief===i?'−':'+')+'</span></button>';
+    if(openBrief===i)h+='<div class="body">'+b.b+'</div>';
+    h+='</div>';
+  });
+  return h+'</section>';
+}
+function md(t){
+  return String(t).split(/\n\n+/).map(function(p){
+    if(/^\s*[-*•]/.test(p))return '<ul>'+p.split('\n').map(function(l){return '<li>'+esc(l.replace(/^\s*[-*•]\s*/,''))+'</li>';}).join('')+'</ul>';
+    return '<p style="margin:0 0 10px">'+esc(p)+'</p>';
+  }).join('');
+}
+
+/* ---------- AI actions ---------- */
+function doSort(){
+  var raw=(document.getElementById('dump')||{}).value||'';
+  S.dump=raw;
+  if(!raw.trim())return Promise.reject(new Error('Write something first, however messy.'));
+  return claude(ctx()+' You sort a brain dump into a task board. Reply with JSON only: an array of objects with keys '+
+    '"title" (one short imperative line, max 12 words), "list" ("villa" or "life"), "owner" ("a" for '+S.names.a+', "b" for '+S.names.b+', "c" for both), '+
+    '"why" (max 6 words, why it is assigned that way). Rules: anything that is research, phone calls, chasing vendors, banks, paperwork or booking appointments goes to "b" by default — the point is to take load off her. '+
+    'Only assign to "a" what genuinely needs her decision, her signature or her presence. Joint money and design decisions are "c". Split vague dread into concrete separate tasks. Max 12 items.',
+    raw,true).then(function(a){
+      prev=(Array.isArray(a)?a:[]).filter(function(p){return p&&p.title;}).map(function(p){
+        return {title:p.title,list:p.list==='villa'?'villa':'life',owner:['a','b','c'].indexOf(p.owner)>-1?p.owner:'b',why:p.why||''};});
+      return null;
+    });
+}
+function doHelp(id){
+  var t=S.tasks.find(function(x){return x.id===id;});
+  if(!t)return Promise.reject(new Error('Task missing.'));
+  return claude(ctx()+' You turn one stuck task into something a tired person can do in the next ten minutes. Reply with JSON only, keys: '+
+    '"next" (the single first physical action, one sentence, be specific about who to contact and how), '+
+    '"steps" (array, 2–5 short follow-on steps), "ask" (array, 0–5 exact questions to ask the other party, omit if not relevant), '+
+    '"draft" (a ready-to-send WhatsApp or email message, plain text, polite and brief, omit if nothing needs sending), '+
+    '"draft_label" (what the draft is, e.g. "WhatsApp to the designer"), "watch" (one sentence on the usual way this goes wrong). '+
+    'Be concrete and India-specific. No filler, no encouragement.',
+    'The task is: '+t.title+'\nIt sits in the '+(t.list==='villa'?'villa interiors':'life admin')+' list. Owner: '+ownerLabel(t.owner)+'.',
+    true).then(function(p){t.help=p;openHelp=id;return null;});
+}
+function doSay(){
+  var m=(document.getElementById('mom')||{}).value||'';
+  S.mom=m;
+  if(!m.trim())return Promise.reject(new Error('Describe the moment first.'));
+  return claude(ctx()+' You help '+S.names.b+' find words in a hard moment with his partner. Reply with JSON only, keys: '+
+    '"read" (one or two sentences on what is likely underneath her reaction — plain, not clinical, never a diagnosis), '+
+    '"say" (array of 2–3 things he could actually say out loud, written as spoken sentences, warm and short, no therapy-speak), '+
+    '"avoid" (one sentence naming the thing he will be tempted to say that will make it worse), '+
+    '"then" (one sentence on what to do after, usually practical). '+
+    'Do not diagnose. Do not suggest she is broken. Do not mention food or eating. If the situation sounds genuinely dangerous rather than distressed, say so plainly in "then" and point at professional help.',
+    m,true);
+}
+function doQuote(){
+  var q=(document.getElementById('quote')||{}).value||'';
+  S.quote=q;
+  if(!q.trim())return Promise.reject(new Error('Paste the quote first.'));
+  return claude(ctx()+' You review interior quotes for an Indian homeowner. Reply with JSON only, keys: '+
+    '"verdict" (two sentences — is this a real BOQ or a lump sum, and is it safe to negotiate from), '+
+    '"flags" (array of objects with "issue", "why", "severity" one of high/med/ok), '+
+    '"missing" (array of items commonly excluded that are absent here — electrical modifications, civil corrections, false ceiling zones, appliances, design revisions, GST treatment, etc), '+
+    '"reply" (a short polite WhatsApp message asking the designer for exactly what is missing). '+
+    'Judge against: every line needs description, brand and model, IS standard, unit, quantity, rate, GST treatment and a remarks column; lump sums are unacceptable; rates far below the others usually hide a spec downgrade; carpentry is typically around half of an interior budget; hidden costs commonly add 8–20%.',
+    q,true);
+}
+function doBrief(){
+  var c=counts();
+  var openList=open_().slice(0,25).map(function(t){return '- ['+ownerLabel(t.owner)+'] '+t.title+(t.due?' (due '+t.due+')':'');}).join('\n');
+  return claude(ctx()+' You write a short agenda for a 20-minute Sunday catch-up between the two of them. '+
+    'Plain text, no headings, four or five bullets maximum. One bullet must name a specific item to move off '+S.names.a+' this week. '+
+    'One must name the single decision that unblocks the most other things. Be concrete, reference the actual items. No pep talk.',
+    'Open items right now — '+c.a+' on '+S.names.a+', '+c.b+' on '+S.names.b+', '+c.c+' shared:\n'+openList,false);
+}
+
+/* ---------- events ---------- */
+function wire(){
+  el.querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.tab;render();};});
+
+  var t1=document.getElementById('takeone');
+  if(t1)t1.onclick=function(){
+    var t=open_().filter(function(x){return x.owner==='a';}).sort(function(p,q){return (p.due||'9')<(q.due||'9')?-1:1;})[0];
+    if(t){t.owner='b';S.wins.unshift({t:t.title,d:today()});S.wins=S.wins.slice(0,8);save();render();}
+  };
+  el.querySelectorAll('[data-med]').forEach(function(b){b.onclick=function(){
+    var d=today();S.medLog[d]=S.medLog[d]||[];
+    var i=S.medLog[d].indexOf(b.dataset.med);
+    if(i>-1)S.medLog[d].splice(i,1);else S.medLog[d].push(b.dataset.med);
+    save();render();};});
+  el.querySelectorAll('[data-medtime]').forEach(function(i){i.onchange=function(){
+    var m=S.meds.find(function(x){return x.id===i.dataset.medtime;});if(m){m.time=i.value;save();render();}};});
+  el.querySelectorAll('[data-toggle]').forEach(function(b){b.onclick=function(){
+    var t=S.tasks.find(function(x){return x.id===b.dataset.toggle;});if(t){t.done=!t.done;save();render();}};});
+  el.querySelectorAll('[data-cycle]').forEach(function(b){b.onclick=function(){
+    var t=S.tasks.find(function(x){return x.id===b.dataset.cycle;});if(!t)return;
+    t.owner=t.owner==='a'?'b':t.owner==='b'?'c':'a';
+    if(t.owner==='b'){S.wins.unshift({t:t.title,d:today()});S.wins=S.wins.slice(0,8);}
+    save();render();};});
+  el.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+    S.tasks=S.tasks.filter(function(x){return x.id!==b.dataset.del;});
+    S.focus.ids=S.focus.ids.filter(function(i){return i!==b.dataset.del;});save();render();};});
+  el.querySelectorAll('[data-due]').forEach(function(i){i.onchange=function(){
+    var t=S.tasks.find(function(x){return x.id===i.dataset.due;});if(t){t.due=i.value;save();render();}};});
+  el.querySelectorAll('[data-pin]').forEach(function(b){b.onclick=function(){
+    var id=b.dataset.pin,i=S.focus.ids.indexOf(id);
+    if(i>-1)S.focus.ids.splice(i,1);else if(S.focus.ids.length<3)S.focus.ids.push(id);
+    save();render();};});
+  el.querySelectorAll('[data-unfocus]').forEach(function(b){b.onclick=function(){
+    S.focus.ids=S.focus.ids.filter(function(i){return i!==b.dataset.unfocus;});save();render();};});
+  el.querySelectorAll('[data-hd]').forEach(function(b){b.onclick=function(){S.hideDone=!S.hideDone;save();render();};});
+  var sd=document.getElementById('syncdone');
+  if(sd)sd.onclick=function(){S.sync=today();save();render();};
+
+  el.querySelectorAll('[data-addbtn]').forEach(function(b){
+    var k=b.dataset.addbtn,inp=el.querySelector('[data-add="'+k+'"]');
+    function go(){var v=inp.value.trim();if(!v)return;
+      /* New tasks always land on me. Use the owner button on the row to move one. */
+      S.tasks.push({id:uid(),list:k,title:v,owner:'b',done:false,due:'',step:0});
+      inp.value='';save();render();}
+    b.onclick=go;inp.onkeydown=function(e){if(e.key==='Enter')go();};});
+
+  el.querySelectorAll('[data-help]').forEach(function(b){b.onclick=function(){
+    var id=b.dataset.help,t=S.tasks.find(function(x){return x.id===id;});
+    if(t&&t.help&&!b.dataset.again){openHelp=openHelp===id?null:id;render();return;}
+    run('h'+id,function(){return doHelp(id);});};});
+  el.querySelectorAll('[data-closehelp]').forEach(function(b){b.onclick=function(){openHelp=null;render();};});
+  el.querySelectorAll('[data-copy]').forEach(function(b){b.onclick=function(){
+    var n=document.getElementById('d'+b.dataset.copy);
+    if(n&&navigator.clipboard){navigator.clipboard.writeText(n.textContent);b.textContent='Copied';}};});
+  el.querySelectorAll('[data-copyq]').forEach(function(b){b.onclick=function(){
+    var n=document.getElementById('qreply');
+    if(n&&navigator.clipboard){navigator.clipboard.writeText(n.textContent);b.textContent='Copied';}};});
+
+  el.querySelectorAll('[data-run]').forEach(function(b){b.onclick=function(){
+    var k=b.dataset.run;
+    run(k,k==='sort'?doSort:k==='say'?doSay:k==='quote'?doQuote:k==='surprise'?doSurprise:k==='repair'?doRepair:doBrief);};});
+  el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
+    var ta=document.getElementById('mom');if(ta){ta.value=b.dataset.chip;ta.focus();}};});
+  el.querySelectorAll('[data-schip]').forEach(function(b){b.onclick=function(){
+    var ta=document.getElementById('sur');if(ta){ta.value=(ta.value?ta.value+'. ':'')+b.dataset.schip;ta.focus();}};});
+  el.querySelectorAll('[data-ans]').forEach(function(b){b.onclick=function(){
+    quizAns[b.dataset.ans]=b.dataset.val;render();};});
+  el.querySelectorAll('[data-quiz]').forEach(function(b){b.onclick=function(){
+    quizDone=true;out.plan=null;render();};});
+  el.querySelectorAll('[data-quizreset]').forEach(function(b){b.onclick=function(){
+    quizAns={};quizDone=false;out.plan=null;render();};});
+  el.querySelectorAll('[data-plan]').forEach(function(b,i){b.onclick=function(){
+    busy['p'+i]=true;err.plan=null;out.plan=null;render();
+    doPlan(b.dataset.plan).then(function(v){out.plan=v;}).catch(function(e){err.plan=e.message;})
+      .then(function(){busy['p'+i]=false;save();render();});};});
+  el.querySelectorAll('[data-copyplan]').forEach(function(b){b.onclick=function(){
+    var n=document.getElementById('plandraft');
+    if(n&&navigator.clipboard){navigator.clipboard.writeText(n.textContent);b.textContent='Copied';}};});
+  el.querySelectorAll('[data-addplan]').forEach(function(b){b.onclick=function(){
+    S.tasks.push({id:uid(),list:'us',title:b.dataset.addplan,owner:'b',done:false,due:'',step:0});
+    tab='us';save();render();};});
+  el.querySelectorAll('[data-book]').forEach(function(b){b.onclick=function(){
+    var i=+b.dataset.book;openBook=openBook===i?null:i;render();};});
+  el.querySelectorAll('[data-addidea]').forEach(function(b){b.onclick=function(){
+    S.tasks.push({id:uid(),list:'us',title:b.dataset.addidea,owner:'b',done:false,due:'',step:0});
+    save();render();};});
+  el.querySelectorAll('[data-copyrep]').forEach(function(b){b.onclick=function(){
+    var n=document.getElementById('repdraft');
+    if(n&&navigator.clipboard){navigator.clipboard.writeText(n.textContent);b.textContent='Copied';}};});
+  el.querySelectorAll('[data-pcycle]').forEach(function(b){b.onclick=function(){
+    var p=prev[+b.dataset.pcycle];p.owner=p.owner==='a'?'b':p.owner==='b'?'c':'a';render();};});
+  el.querySelectorAll('[data-pdel]').forEach(function(b){b.onclick=function(){
+    prev.splice(+b.dataset.pdel,1);render();};});
+  var ac=document.getElementById('accept');
+  if(ac)ac.onclick=function(){
+    prev.forEach(function(p){S.tasks.push({id:uid(),list:p.list,title:p.title,owner:p.owner,done:false,due:'',step:0});});
+    prev=null;S.dump='';tab='board';save();render();};
+  el.querySelectorAll('[data-brief]').forEach(function(b){b.onclick=function(){
+    var i=+b.dataset.brief;openBrief=openBrief===i?null:i;render();};});
+
+  var nb=document.getElementById('notif');
+  if(nb)nb.onclick=function(){
+    if(!('Notification' in window)){nb.textContent='Not supported here';return;}
+    Notification.requestPermission().then(function(p){nb.textContent=p==='granted'?'Reminders on ✓':'Blocked in settings';});};
+  var rn=document.getElementById('rename');
+  if(rn)rn.onclick=function(){
+    var a=prompt('Her name',S.names.a);if(a===null)return;
+    var b2=prompt('Your name',S.names.b);if(b2===null)return;
+    var c2=prompt('Your city (helps the drafts)',S.city||'');
+    var p2=prompt('Anything the drafts should know about the two of you — work, '+
+      'what is going on, what she is dealing with. Stays on your device, never in the code.',S.profile||'');
+    S.names={a:a.trim()||'Her',b:b2.trim()||'Me'};S.city=(c2||'').trim();
+    if(p2!==null)S.profile=p2.trim();
+    save();render();};
+  var ep=document.getElementById('endpoint');
+  if(ep)ep.onclick=function(){
+    var cur='';try{cur=localStorage.getItem('pw_ai_endpoint')||'';}catch(e){}
+    var v=prompt('URL of your Anthropic API proxy. Leave blank to use the default.',cur);
+    if(v===null)return;
+    try{v.trim()?localStorage.setItem('pw_ai_endpoint',v.trim()):localStorage.removeItem('pw_ai_endpoint');}catch(e){}
+    alert('Saved. Reload the page.');};
+  var rs=document.getElementById('reset');
+  if(rs)rs.onclick=function(){if(confirm('Erase everything and start again?')){S=fresh();out={};prev=null;save();render();}};
+}
+
+setInterval(function(){
+  if(!S)return;
+  var d=today(),log=S.medLog[d]||[],dirty=false;
+  S.meds.forEach(function(m){
+    var k=d+m.id;
+    if(log.indexOf(m.id)===-1&&nowMins()>=toMins(m.time)&&!fired[k]){
+      fired[k]=true;dirty=true;
+      if(window.Notification&&Notification.permission==='granted'){try{new Notification(m.label,{body:'Time for '+m.label+'.'});}catch(e){}}
+    }});
+  if(dirty&&tab==='board')render();
+},60000);
+
+load();
+})();
+</script>

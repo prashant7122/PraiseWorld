@@ -1,0 +1,9 @@
+# Working notes for Claude. These stay on this machine.
+# CLAUDE.md explains why the app exists and names health details about a real
+# person; CLAUDE-root.md names an employer and city. The whole point of keeping
+# index.html impersonal is undone if these get pushed. Do not remove these lines.
+CLAUDE.md
+CLAUDE-root.md
+
+# macOS
+.DS_Store
